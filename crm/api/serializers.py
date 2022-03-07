@@ -55,6 +55,7 @@ class UserListSerializer(ModelSerializer):
 
 
 class UserDetailSerializer(ModelSerializer):
+    groups = GroupSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
