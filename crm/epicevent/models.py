@@ -22,18 +22,27 @@ class Contract(models.Model):
     status = models.BooleanField(default=True)
     amount = models.FloatField(max_length=25)
     payment_due = models.DateTimeField(blank=True, null=True)
+    signed = models.BooleanField(default=False)
     creation_date = models.DateTimeField(auto_now_add=True)
     update_date = models.DateTimeField(auto_now_add=True)
     sales_contact_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contract_sales_contact')
     client_id = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='contract_client')
+    
+    def __str__(self):
+        return self.client_id.company_name + "_" + str(self.id)
 
 
 class Event(models.Model):
-    attendees = models.IntegerField
-    event_date = models.DateTimeField
+    attendees = models.IntegerField()
+    event_date = models.DateTimeField()
     notes = models.CharField(max_length=35000, blank=True, null=True)
     creation_date = models.DateTimeField(auto_now_add=True)
     update_date = models.DateTimeField(auto_now_add=True)
-    support_contact = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_support_contact')
+    support_contact = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_support_contact',
+                                        blank=True, null=True)
     client_id = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='event_client')
+    contract_id = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name='event_contract')
+    
+    def __str__(self):
+        return self.client_id.company_name + "_" + str(self.contract_id.id) + "_" + str(self.event_date)
 

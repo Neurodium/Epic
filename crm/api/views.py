@@ -12,7 +12,8 @@ from authentication.models import User
 from epicevent.models import Client, Event, Contract
 from authentication.permissions import IsSales, IsSupport, IsManager
 from .serializers import CreateUserSerializer, UserDetailSerializer, ModifyUserSerializer, UserListSerializer, \
-    ClientDetailSerializer, ClientListSerializer
+    ClientDetailSerializer, ClientListSerializer, ModifyOrCreateClientSerializer, \
+    ModifyOrCreateEventSerializer
 import ast
 
 
@@ -94,7 +95,7 @@ class UserList(UserManagement, PaginationHandlerMixin):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class ClientView(APIView, PaginationHandlerMixin):
+class ClientView(APIView):
     permission_classes = [IsAuthenticated, IsSales | IsManager | IsSupport]
 
     def get_client(self, client_id):
@@ -108,17 +109,24 @@ class ClientView(APIView, PaginationHandlerMixin):
         serializer = ClientDetailSerializer(client)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def post(self, request):
+        serializer = ModifyOrCreateClientSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def put(self, request, client_id):
         client = self.get_client(client_id)
         data = request.data
-        serializer = ModifyUserSerializer(user, data=data)
+        serializer = ModifyOrCreateClientSerializer(client, data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ClientList(ClientView):
+class ClientList(ClientView, PaginationHandlerMixin):
     permission_classes = [IsAuthenticated, IsSales | IsManager | IsSupport]
     pagination_class = BasicPagination
 
@@ -130,3 +138,15 @@ class ClientList(ClientView):
         else:
             serializer = ClientListSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class EventManagement(APIView):
+    permission_classes = [IsAuthenticated, IsSales | IsManager | IsSupport]
+
+    def post(self, request):
+        serializer = ModifyOrCreateEventSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

@@ -51,7 +51,7 @@ class UserListSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username']
+        fields = ['id', 'username']
 
 
 class UserDetailSerializer(ModelSerializer):
@@ -78,8 +78,17 @@ class ClientListSerializer(ModelSerializer):
         fields = ['id', 'company_name', 'first_name', 'last_name']
 
 
-class ModifyClientSerializer(ModelSerializer):
+class ModifyOrCreateClientSerializer(ModelSerializer):
 
     class Meta:
         model = Client
         fields = ['company_name', 'first_name', 'last_name', 'email', 'phone', 'mobile', 'sales_contact_id']
+        
+
+class ModifyOrCreateEventSerializer(ModelSerializer):
+
+    class Meta:
+        model = Event
+        fields = ['attendees', 'event_date', 'notes', 'support_contact', 'client_id']
+
+

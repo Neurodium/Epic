@@ -20,7 +20,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, blank=True, null=True)
     last_name = models.CharField(max_length=30, blank=True, null=True)
     first_name = models.CharField(max_length=30, blank=True, null=True)
-    email = models.EmailField(max_length=60, unique=True, blank=True, null=True)
+    email = models.EmailField(max_length=60, unique=True)
     join_date = models.DateTimeField(blank=True, null=True)
     is_staff = models.BooleanField(default=True)
     creation_date = models.DateTimeField(auto_now_add=True)

@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from api.views import UserManagement, UserList, LoginUser, ClientView, ClientList
+from api.views import UserManagement, UserList, LoginUser, ClientView, ClientList, EventManagement
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,4 +29,6 @@ urlpatterns = [
     path('user/<username>/', UserManagement.as_view()),
     path('client/', ClientList.as_view()),
     path('client/<client_id>/', ClientView.as_view()),
+    path('event/', EventManagement.as_view()),
+    
 ]
