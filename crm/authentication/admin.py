@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from authentication.models import User
 from epicevent.models import Client, Event, Contract
 from django.urls import reverse
@@ -9,38 +10,10 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from dateutil.relativedelta import *
 from django import forms
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
 
 # Register your models here.
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ("username", "id", "last_name", "first_name")
-    search_fields = ("username__startswith", "last_name__startswith",)
-
-
-@admin.register(Client)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ("company_name", "last_name", "first_name", "email", "phone", "sales_contact_id",
-                    "view_coming_event_link")
-    search_fields = ("company_name__startswith", "last_name__startswith",)
-
-    def view_coming_event_link(self, obj):
-        today = datetime.now(tz=timezone.utc)
-        coming_event = Event.objects.filter(client_id=obj).filter(event_date__gte=today)
-        count = coming_event.count()
-        events = list(coming_event.values_list('id', flat=True))
-        url = (reverse("admin:epicevent_event_changelist")
-               + "?"
-               + urlencode({"client_id": obj.id}, True)
-               + "&agenda=future_events"
-               )
-        if not coming_event:
-            return "No"
-        return format_html('<a href="{}">{} Event(s)</a>', url, count)
-
-    view_coming_event_link.short_description = "Coming Event"
-
-
 class ComingEvent(admin.SimpleListFilter):
     """ Filter used to select only icoming events:
     values:
@@ -77,12 +50,153 @@ class ComingEvent(admin.SimpleListFilter):
             return queryset.filter(event_date__gte=today)
 
 
+class UserCreationAdminForm(UserCreationForm):
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = UserCreationForm.Meta.fields
+
+
+class UserChangeAdminForm(UserChangeForm):
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = UserChangeForm.Meta.fields
+
+
+class ClientAdminForm(forms.ModelForm):
+    class Meta(object):
+        model = Client
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super(ClientAdminForm, self).__init__(*args, **kwargs)
+
+        users = User.objects.filter(groups__name="sales")
+        self.fields['sales_contact_id'] = forms.ModelChoiceField(queryset=users)
+
+
+class ContractAdminForm(forms.ModelForm):
+    class Meta(object):
+        model = Contract
+        fields = ["status", "client_id", "sales_contact_id", "amount", "payment_due", "signed"]
+
+    def __init__(self, *args, **kwargs):
+        super(ContractAdminForm, self).__init__(*args, **kwargs)
+
+        try:
+            self.initial['client_id'] = kwargs['instance'].client_id.id
+        except:
+            pass
+        client_list = [('', '---------')] + [(client.id, client) for client in Client.objects.all()]
+
+        try:
+            self.initial['sales_id'] = kwargs['instance'].sales_contact_id.id
+            sales_init_form = [(sales.id, sales) for sales in
+                               User.objects.filter(username=kwargs['instance'].client_id.sales_contact_id
+                                                   )]
+        except:
+            sales_init_form = [('', '---------')]
+
+        self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
+                                                              'onchange': 'getSales(this.value)',
+                                                              'style': 'width:200px'
+                                                              },
+                                                       choices=client_list,
+                                                       )
+
+        self.fields['sales_contact_id'].widget = \
+            forms.Select(attrs={'id': 'id_sales',
+                                'style': 'width:200px'
+                                },
+                         choices=sales_init_form
+                         )
+
+
+class EventAdminForm(forms.ModelForm):
+    class Meta(object):
+        model = Event
+        fields = "__all__"
+
+
+    def __init__(self, *args, **kwargs):
+        super(EventAdminForm, self).__init__(*args, **kwargs)
+
+        users = User.objects.filter(groups__name="support")
+        self.fields['support_contact'] = forms.ModelChoiceField(queryset=users)
+        try:
+            self.initial['client_id'] = kwargs['instance'].client_id.id
+        except:
+            pass
+        client_list = [('', '---------')] + [(client.id, client) for client in Client.objects.all()]
+
+        try:
+            self.initial['contract_id'] = kwargs['instance'].contract_id.id
+            contract_init_form = [(contract.id, contract) for contract in Contract.objects.filter(
+                client_id=kwargs['instance'].client_id
+            )]
+        except:
+            contract_init_form = [('', '---------')]
+
+        self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
+                                                                'onchange': 'getContracts(this.value)',
+                                                                'style': 'width:200px'
+                                                                },
+                                                         choices=client_list,
+                                                         )
+
+        self.fields['contract_id'].widget = forms.Select(attrs={
+            'id': 'id_contract',
+            'style': 'width:200px'
+            },
+            choices=contract_init_form
+        )
+
+
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    form = UserChangeAdminForm
+    add_form = UserCreationAdminForm
+    list_display = ("username", "id", "last_name", "first_name", "email")
+    search_fields = ("username__startswith", "last_name__startswith",)
+
+
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
+    form = ClientAdminForm
+    fields = ("company_name", "last_name", "first_name", "email", "phone", "mobile", "sales_contact_id")
+    list_display = ("company_name", "last_name", "first_name", "email", "phone", "sales_contact_id",
+                    "view_coming_event_link")
+    search_fields = ("company_name__startswith", "last_name__startswith",)
+    list_filter = ("sales_contact_id", )
+
+    def view_coming_event_link(self, obj):
+        today = datetime.now(tz=timezone.utc)
+        coming_event = Event.objects.filter(client_id=obj).filter(event_date__gte=today)
+        count = coming_event.count()
+        url = (reverse("admin:epicevent_event_changelist")
+               + "?"
+               + urlencode({"client_id": obj.id}, True)
+               + "&agenda=future_events"
+               )
+        if not coming_event:
+            return "No"
+        return format_html('<a href="{}">{} Event(s)</a>', url, count)
+
+    view_coming_event_link.short_description = "Coming Event"
+
+
 @admin.register(Event)
-class UserAdmin(admin.ModelAdmin):
+class EventAdmin(admin.ModelAdmin):
+    form = EventAdminForm
     list_display = ("id", "client_id", "event_date", "support_contact", "view_client_link",
                     "client_phone", "client_email", "view_contract_link", "contract_sales")
     search_fields = ("client_id__company_name__startswith",)
-    list_filter = ("client_id__company_name", ComingEvent)
+    list_filter = ("client_id__company_name", ComingEvent, "support_contact")
+
+    class Media:
+        js = (
+            'js/chained-area.js',
+        )
 
     def view_contract_link(self, obj):
         url = (reverse("admin:epicevent_contract_changelist")
@@ -124,10 +238,16 @@ class UserAdmin(admin.ModelAdmin):
 
 
 @admin.register(Contract)
-class UserAdmin(admin.ModelAdmin):
+class ContractAdmin(admin.ModelAdmin):
+    form = ContractAdminForm
     list_display = ("id", "view_client_link", "status", "signed", "sales_contact_id", "related_event")
     search_fields = ("client_id__company_name__startswith",)
-    list_filter = ("client_id__company_name",)
+    list_filter = ("client_id__company_name", "sales_contact_id", "signed")
+
+    class Media:
+        js = (
+            'js/chained-area.js',
+        )
 
     def view_client_link(self, obj):
         url = (reverse("admin:epicevent_client_changelist")

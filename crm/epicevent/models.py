@@ -21,7 +21,7 @@ class Client(models.Model):
 class Contract(models.Model):
     status = models.BooleanField(default=True)
     amount = models.FloatField(max_length=25)
-    payment_due = models.DateTimeField(blank=True, null=True)
+    payment_due = models.DateField(blank=True, null=True)
     signed = models.BooleanField(default=False)
     creation_date = models.DateTimeField(auto_now_add=True)
     update_date = models.DateTimeField(auto_now_add=True)

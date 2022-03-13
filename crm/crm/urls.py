@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
+from epicevent.views import contract_list, sales_contact_list
 from api.views import UserManagement, UserList, LoginUser, ClientView, ClientList, EventManagement
 
 urlpatterns = [
@@ -30,5 +30,7 @@ urlpatterns = [
     path('client/', ClientList.as_view()),
     path('client/<client_id>/', ClientView.as_view()),
     path('event/', EventManagement.as_view()),
+    path('get/contracts/<client_id>/', contract_list),
+    path('get/sales/<client_id>/', sales_contact_list),
     
 ]
