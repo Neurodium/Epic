@@ -46,6 +46,7 @@ def create_groups(apps, schema_migration):
         change_client,
         view_client,
         add_event,
+        change_event,
         view_event,
         add_contract,
         change_contract,
@@ -61,7 +62,6 @@ def create_groups(apps, schema_migration):
         view_client,
         change_event,
         view_event,
-        change_contract,
         view_contract,
     ]
 

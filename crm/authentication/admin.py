@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from dateutil.relativedelta import *
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from authentication.permissions import IsSales, IsManager, IsSupport
 
 
 # Register your models here.
@@ -50,6 +51,35 @@ class ComingEvent(admin.SimpleListFilter):
             return queryset.filter(event_date__gte=today)
 
 
+class ClientContract(admin.SimpleListFilter):
+    """
+        Filter to check if a client has a signed contract
+        - Yes: There is at least a signed contract
+        - No: There is no signed contract
+    """
+
+    title = _('signed contract')
+
+    parameter_name = 'signed_contract'
+
+    def lookups(self, request, model_admin):
+
+        return(
+            ('Yes', _('has signed a contract')),
+            ('No', _('has not signed a contract')),
+        )
+
+    def queryset(self, request, queryset):
+        contracts = list(Contract.objects.filter(status=True))
+        signed_clients = [contract.client_id.id for contract in contracts]
+
+        if self.value() == 'Yes':
+            return queryset.filter(id__in=signed_clients)
+
+        if self.value() == 'No':
+            return queryset.exclude(id__in=signed_clients)
+
+
 class UserCreationAdminForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
@@ -71,13 +101,13 @@ class ClientAdminForm(forms.ModelForm):
         super(ClientAdminForm, self).__init__(*args, **kwargs)
 
         users = User.objects.filter(groups__name="sales")
-        self.fields['sales_contact_id'] = forms.ModelChoiceField(queryset=users)
+        self.fields['sales_contact_id'] = forms.ModelChoiceField(queryset=users, required=False)
 
 
 class ContractAdminForm(forms.ModelForm):
     class Meta(object):
         model = Contract
-        fields = ["status", "client_id", "sales_contact_id", "amount", "payment_due", "signed"]
+        fields = ["status", "client_id", "sales_contact_id", "amount", "payment_due"]
 
     def __init__(self, *args, **kwargs):
         super(ContractAdminForm, self).__init__(*args, **kwargs)
@@ -96,19 +126,23 @@ class ContractAdminForm(forms.ModelForm):
         except:
             sales_init_form = [('', '---------')]
 
-        self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
-                                                              'onchange': 'getSales(this.value)',
-                                                              'style': 'width:200px'
-                                                              },
-                                                       choices=client_list,
-                                                       )
+        try:
+            self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
+                                                                  'onchange': 'getSales(this.value)',
+                                                                  'style': 'width:200px'
+                                                                  },
+                                                           choices=client_list,
+                                                           )
 
-        self.fields['sales_contact_id'].widget = \
-            forms.Select(attrs={'id': 'id_sales',
-                                'style': 'width:200px'
-                                },
-                         choices=sales_init_form
-                         )
+            self.fields['sales_contact_id'].widget = \
+                forms.Select(attrs={'id': 'id_sales',
+                                    'style': 'width:200px'
+                                    },
+                             choices=sales_init_form
+                             )
+
+        except:
+            pass
 
 
 class EventAdminForm(forms.ModelForm):
@@ -121,7 +155,7 @@ class EventAdminForm(forms.ModelForm):
         super(EventAdminForm, self).__init__(*args, **kwargs)
 
         users = User.objects.filter(groups__name="support")
-        self.fields['support_contact'] = forms.ModelChoiceField(queryset=users)
+        self.fields['support_contact'] = forms.ModelChoiceField(queryset=users, required=False)
         try:
             self.initial['client_id'] = kwargs['instance'].client_id.id
         except:
@@ -136,19 +170,22 @@ class EventAdminForm(forms.ModelForm):
         except:
             contract_init_form = [('', '---------')]
 
-        self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
+        try:
+            self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
                                                                 'onchange': 'getContracts(this.value)',
                                                                 'style': 'width:200px'
                                                                 },
-                                                         choices=client_list,
-                                                         )
+                                                           choices=client_list,
+                                                           )
 
-        self.fields['contract_id'].widget = forms.Select(attrs={
-            'id': 'id_contract',
-            'style': 'width:200px'
-            },
-            choices=contract_init_form
-        )
+            self.fields['contract_id'].widget = forms.Select(attrs={
+                'id': 'id_contract',
+                'style': 'width:200px'
+                },
+                choices=contract_init_form
+            )
+        except:
+            pass
 
 
 
@@ -159,6 +196,27 @@ class UserAdmin(BaseUserAdmin):
     list_display = ("username", "id", "last_name", "first_name", "email")
     search_fields = ("username__startswith", "last_name__startswith",)
 
+    def get_form(self, request, obj, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        is_superuser = request.user.is_superuser
+        disabled_fields = set()
+        print(request.user.is_superuser)
+        if (
+                not is_superuser
+                and obj is not None
+        ):
+            disabled_fields |= {
+                'is_superuser',
+                'user_permissions',
+            }
+
+        for f in disabled_fields:
+            if f in form.base_fields:
+                form.base_fields[f].disabled = True
+
+        return form
+
+
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
@@ -167,7 +225,18 @@ class ClientAdmin(admin.ModelAdmin):
     list_display = ("company_name", "last_name", "first_name", "email", "phone", "sales_contact_id",
                     "view_coming_event_link")
     search_fields = ("company_name__startswith", "last_name__startswith",)
-    list_filter = ("sales_contact_id", )
+    list_filter = ("sales_contact_id", ClientContract)
+
+    def has_change_permission(self, request, *obj):
+        if obj:
+            if request.user == obj[0].sales_contact_id:
+                return True
+        if request.user.groups.filter(name='manager').exists():
+            return True
+        if request.user.is_superuser:
+            return True
+        return False
+
 
     def view_coming_event_link(self, obj):
         today = datetime.now(tz=timezone.utc)
@@ -197,6 +266,19 @@ class EventAdmin(admin.ModelAdmin):
         js = (
             'js/chained-area.js',
         )
+
+    def has_change_permission(self, request, *obj):
+        if obj:
+            if request.user == obj[0].client_id.sales_contact_id:
+                return True
+        if obj:
+            if request.user == obj[0].support_contact:
+                return True
+        if request.user.groups.filter(name='manager').exists():
+            return True
+        if request.user.is_superuser:
+            return True
+        return False
 
     def view_contract_link(self, obj):
         url = (reverse("admin:epicevent_contract_changelist")
@@ -240,14 +322,24 @@ class EventAdmin(admin.ModelAdmin):
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
     form = ContractAdminForm
-    list_display = ("id", "view_client_link", "status", "signed", "sales_contact_id", "related_event")
+    list_display = ("id", "view_client_link", "status", "sales_contact_id", "related_event")
     search_fields = ("client_id__company_name__startswith",)
-    list_filter = ("client_id__company_name", "sales_contact_id", "signed")
+    list_filter = ("client_id__company_name", "sales_contact_id")
 
     class Media:
         js = (
             'js/chained-area.js',
         )
+
+    def has_change_permission(self, request, *obj):
+        if obj:
+            if request.user == obj[0].sales_contact_id:
+                return True
+        if request.user.groups.filter(name='manager').exists():
+            return True
+        if request.user.is_superuser:
+            return True
+        return False
 
     def view_client_link(self, obj):
         url = (reverse("admin:epicevent_client_changelist")
