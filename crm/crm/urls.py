@@ -17,7 +17,12 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from epicevent.views import contract_list, sales_contact_list
-from api.views import UserManagement, UserList, LoginUser, ClientView, ClientList, EventManagement
+from api.views import LoginUser, ClientView, ClientList, EventManagement, UsersViewSet
+from rest_framework.routers import SimpleRouter
+
+router = SimpleRouter()
+router.register('user', UsersViewSet)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,12 +30,10 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('login/', LoginUser.as_view()),
-    path('user/', UserList.as_view()),
-    path('user/<username>/', UserManagement.as_view()),
     path('client/', ClientList.as_view()),
     path('client/<client_id>/', ClientView.as_view()),
     path('event/', EventManagement.as_view()),
     path('get/contracts/<client_id>/', contract_list),
     path('get/sales/<client_id>/', sales_contact_list),
-    
+    path('api/', include(router.urls)),
 ]

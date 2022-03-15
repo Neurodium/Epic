@@ -15,12 +15,54 @@ from .serializers import CreateUserSerializer, UserDetailSerializer, ModifyUserS
     ClientDetailSerializer, ClientListSerializer, ModifyOrCreateClientSerializer, \
     ModifyOrCreateEventSerializer
 import ast
-
+from rest_framework.viewsets import ModelViewSet
 
 
 # Create your views here.
 class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
+
+
+class UsersViewSet(ModelViewSet):
+    permission_classes = [IsAuthenticated, IsManager]
+    serializer_class = UserListSerializer
+    detail_serializer_class = UserDetailSerializer
+    modify_serializer_class = ModifyUserSerializer
+    create_serializer_class = CreateUserSerializer
+    queryset = User.objects.all()
+    lookup_field = 'username'
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return self.detail_serializer_class
+        elif self.action == 'update':
+            return self.modify_serializer_class
+        elif self.action == 'create':
+            return self.create_serializer_class
+        else:
+            return super().get_serializer_class()
+
+    def create(self, request):
+        serializer = CreateUserSerializer(data=request.data)
+        groups = ast.literal_eval(request.data['groups'])
+        if serializer.is_valid():
+            serializer.save(groups=groups)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, username=None):
+        user = User.objects.get(username=username)
+        serializer = ModifyUserSerializer(user, data=request.data)
+        groups = ast.literal_eval(request.data['groups'])
+        if serializer.is_valid():
+            serializer.save(groups=groups)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, username=None):
+        user = User.objects.get(username=username)
+        user.delete()
+        return Response(f"{user.username} has been deleted", status=status.HTTP_204_NO_CONTENT)
 
 
 class LoginUser(APIView):
@@ -42,57 +84,6 @@ class LoginUser(APIView):
             return Response(response, status=status.HTTP_200_OK)
         else:
             raise ValidationError({"400": f'{user.last_name} {user.first_name} is not active'})
-
-
-class UserManagement(APIView):
-    permission_classes = [IsAuthenticated, IsManager]
-
-    def get_user(self, username):
-        try:
-            return User.objects.get(username=username)
-        except User.DoesNotExist:
-            raise Http404
-
-    def get(self, request, username):
-        user = self.get_user(username)
-        serializer = UserDetailSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, username):
-        user = self.get_user(username)
-        data = request.data
-        serializer = ModifyUserSerializer(user, data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, username):
-        user = self.get_user(username)
-        user.delete()
-        return Response(f"{user.username} has been deleted", status=status.HTTP_204_NO_CONTENT)
-
-
-class UserList(UserManagement, PaginationHandlerMixin):
-    permission_classes = [IsAuthenticated, IsManager]
-    pagination_class = BasicPagination
-
-    def post(self, request):
-        serializer = CreateUserSerializer(data=request.data)
-        groups = ast.literal_eval(request.data['groups'])
-        if serializer.is_valid():
-            serializer.save(groups=groups)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def get(self, request):
-        users = User.objects.all()
-        page = self.paginate_queryset(users)
-        if page is not None:
-            serializer = self.get_paginated_response(UserListSerializer(page, many=True).data)
-        else:
-            serializer = UserListSerializer(users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ClientView(APIView):

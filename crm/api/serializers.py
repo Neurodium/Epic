@@ -17,15 +17,15 @@ class CreateUserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'role', 'last_name', 'first_name', 'join_date', 'groups']
+        fields = ['username', 'password', 'last_name', 'first_name', 'email', 'join_date', 'groups']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
         user = User(
             username=validated_data['username'],
-            role=validated_data['role'],
             last_name=validated_data['last_name'],
             first_name=validated_data['first_name'],
+            email=validated_data['email'],
             join_date=validated_data['join_date'],
         )
         user.set_password(validated_data['password'])
@@ -35,10 +35,11 @@ class CreateUserSerializer(ModelSerializer):
 
 
 class ModifyUserSerializer(ModelSerializer):
+    groups = GroupSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ['role', 'last_name', 'first_name', 'join_date']
+        fields = ['last_name', 'first_name', 'join_date', 'email', 'groups']
 
 
 class LoginUserSerializer(ModelSerializer):
@@ -52,15 +53,14 @@ class UserListSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username']
-
-
+        
 class UserDetailSerializer(ModelSerializer):
+    
     groups = GroupSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ['username', 'role', 'last_name', 'first_name', 'join_date', 'is_staff', 'creation_date',
-                  'update_date', 'groups']
+        fields = ['username', 'last_name', 'first_name', 'join_date', 'email', 'groups']
 
 
 class ClientDetailSerializer(ModelSerializer):
