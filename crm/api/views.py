@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.pagination import PageNumberPagination
@@ -22,7 +22,27 @@ from rest_framework.viewsets import ModelViewSet
 class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
+class LoginUser(APIView):
+    permission_classes = [AllowAny]
 
+    def post(self, request):
+        data = request.data
+        username = data['username']
+        try:
+            user = User.objects.get(username=username)
+        except BaseException as error:
+            raise ValidationError({"400": f'{str(error)}'})
+
+        if user.is_active:
+            token = RefreshToken.for_user(user)
+            response = {"username": username,
+                        "token": str(token),
+                        "access": str(token.access_token), }
+            return Response(response, status=status.HTTP_200_OK)
+        else:
+            raise ValidationError({"400": f'{user.last_name} {user.first_name} is not active'})
+        
+        
 class UsersViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated, IsManager]
     serializer_class = UserListSerializer
@@ -65,71 +85,45 @@ class UsersViewSet(ModelViewSet):
         return Response(f"{user.username} has been deleted", status=status.HTTP_204_NO_CONTENT)
 
 
-class LoginUser(APIView):
-    permission_classes = [AllowAny]
+class ClientViewSet(ModelViewSet):
+    serializer_class = ClientListSerializer
+    detail_serializer_class = ClientDetailSerializer
+    queryset = Client.objects.all()
+    lookup_field = 'company_name'
 
-    def post(self, request):
-        data = request.data
-        username = data['username']
-        try:
-            user = User.objects.get(username=username)
-        except BaseException as error:
-            raise ValidationError({"400": f'{str(error)}'})
-
-        if user.is_active:
-            token = RefreshToken.for_user(user)
-            response = {"username": username,
-                        "token": str(token),
-                        "access": str(token.access_token), }
-            return Response(response, status=status.HTTP_200_OK)
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return super().get_serializer_class()
         else:
-            raise ValidationError({"400": f'{user.last_name} {user.first_name} is not active'})
+            return self.detail_serializer_class
 
-
-class ClientView(APIView):
-    permission_classes = [IsAuthenticated, IsSales | IsManager | IsSupport]
-
-    def get_client(self, client_id):
-        try:
-            return Client.objects.get(id=client_id)
-        except Client.DoesNotExist:
-            raise Http404
-
-    def get(self, request, client_id):
-        client = self.get_client(client_id)
-        serializer = ClientDetailSerializer(client)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        serializer = ModifyOrCreateClientSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def put(self, request, client_id):
-        client = self.get_client(client_id)
-        data = request.data
-        serializer = ModifyOrCreateClientSerializer(client, data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ClientList(ClientView, PaginationHandlerMixin):
-    permission_classes = [IsAuthenticated, IsSales | IsManager | IsSupport]
-    pagination_class = BasicPagination
-
-    def get(self, request):
-        clients = Client.objects.all()
-        page = self.paginate_queryset(clients)
-        if page is not None:
-            serializer = self.get_paginated_response(ClientListSerializer(page, many=True).data)
+    def get_permissions(self):
+        """
+            Check the permission by action
+        """
+        if self.action == 'list':
+            permission_classes = [IsAuthenticated]
+        elif self.action == 'retrieve':
+            permission_classes = [IsAuthenticated]
+        elif self.action == 'update':
+            permission_classes = [IsAuthenticated, IsSales | IsManager]
+        elif self.action == 'create':
+            permission_classes = [IsAuthenticated, IsSales]
         else:
-            serializer = ClientListSerializer(users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
+
+    def update(self, request, company_name=None):
+        client = Client.objects.get(company_name=company_name)
+        serializer = ClientDetailSerializer(client, data=request.data)
+        sales_contact = User.objects.get(username=request.data['sales_contact_id'])
+        if request.user == client.sales_contact_id:
+            if serializer.is_valid():
+                serializer.save(sales_contact_id=sales_contact)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(f"You do not have rights to update {client.company_name}")
+
 
 class EventManagement(APIView):
     permission_classes = [IsAuthenticated, IsSales | IsManager | IsSupport]

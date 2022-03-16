@@ -65,9 +65,11 @@ class UserDetailSerializer(ModelSerializer):
 
 class ClientDetailSerializer(ModelSerializer):
 
+    sales_contact_id = UserListSerializer(read_only=True)
+
     class Meta:
         model = Client
-        fields = '__all__'
+        fields = ['company_name', 'first_name', 'last_name', 'email', 'phone', 'mobile', 'sales_contact_id']
 
 
 
@@ -75,14 +77,14 @@ class ClientListSerializer(ModelSerializer):
 
     class Meta:
         model = Client
-        fields = ['id', 'company_name', 'first_name', 'last_name']
+        fields = ['id', 'company_name', 'first_name', 'last_name', 'email']
 
 
 class ModifyOrCreateClientSerializer(ModelSerializer):
 
     class Meta:
         model = Client
-        fields = ['company_name', 'first_name', 'last_name', 'email', 'phone', 'mobile', 'sales_contact_id']
+        fields = ['first_name', 'last_name', 'email', 'phone', 'mobile', 'sales_contact_id']
         
 
 class ModifyOrCreateEventSerializer(ModelSerializer):

@@ -3,12 +3,12 @@ from authentication.models import User
 
 # Create your models here.
 class Client(models.Model):
-    first_name = models.CharField(max_length=25)
-    last_name = models.CharField(max_length=25)
+    first_name = models.CharField(max_length=25, null=True, blank=True)
+    last_name = models.CharField(max_length=25, null=True, blank=True)
     email = models.EmailField(max_length=100, unique=True, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     mobile = models.CharField(max_length=20, blank=True, null=True)
-    company_name = models.CharField(max_length=250)
+    company_name = models.CharField(max_length=250, unique=True)
     creation_date = models.DateTimeField(auto_now_add=True)
     update_date = models.DateTimeField(auto_now_add=True)
     sales_contact_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='client_sales_contact',
