@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from authentication.models import User
 from epicevent.models import Client, Event, Contract
@@ -150,6 +150,12 @@ class EventAdminForm(forms.ModelForm):
         model = Event
         fields = "__all__"
 
+    def clean(self):
+        cleaned_data = self.cleaned_data
+        contract = cleaned_data['contract_id']
+        if contract.status is False:
+            raise forms.ValidationError("Contract is not signed")
+        return cleaned_data
 
     def __init__(self, *args, **kwargs):
         super(EventAdminForm, self).__init__(*args, **kwargs)
@@ -229,8 +235,9 @@ class ClientAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, *obj):
         if obj:
-            if request.user == obj[0].sales_contact_id:
-                return True
+            if obj[0] is not None:
+                if request.user == obj[0].sales_contact_id:
+                    return True
         if request.user.groups.filter(name='manager').exists():
             return True
         if request.user.is_superuser:
@@ -269,11 +276,13 @@ class EventAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, *obj):
         if obj:
-            if request.user == obj[0].client_id.sales_contact_id:
-                return True
+            if obj[0] is not None:
+                if request.user == obj[0].client_id.sales_contact_id:
+                    return True
         if obj:
-            if request.user == obj[0].support_contact:
-                return True
+            if obj[0] is not None:
+                if request.user == obj[0].support_contact:
+                    return True
         if request.user.groups.filter(name='manager').exists():
             return True
         if request.user.is_superuser:
@@ -333,8 +342,9 @@ class ContractAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, *obj):
         if obj:
-            if request.user == obj[0].sales_contact_id:
-                return True
+            if obj[0] is not None:
+                if request.user == obj[0].sales_contact_id:
+                    return True
         if request.user.groups.filter(name='manager').exists():
             return True
         if request.user.is_superuser:

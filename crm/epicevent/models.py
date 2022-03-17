@@ -42,6 +42,9 @@ class Event(models.Model):
     client_id = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='event_client')
     contract_id = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name='event_contract')
     
+    class Meta:
+        unique_together = ['client_id', 'contract_id']
+
     def __str__(self):
         return self.client_id.company_name + "_" + str(self.contract_id.id) + "_" + str(self.event_date)
 

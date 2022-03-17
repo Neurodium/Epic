@@ -63,14 +63,27 @@ class UserDetailSerializer(ModelSerializer):
         fields = ['username', 'last_name', 'first_name', 'join_date', 'email', 'groups']
 
 
+class UserInfoSerializer(ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'last_name', 'first_name', 'email']
+
+
 class ClientDetailSerializer(ModelSerializer):
 
-    sales_contact_id = UserListSerializer(read_only=True)
+    sales_contact_id = UserInfoSerializer(read_only=True)
 
     class Meta:
         model = Client
         fields = ['company_name', 'first_name', 'last_name', 'email', 'phone', 'mobile', 'sales_contact_id']
 
+
+class ClientInfoSerializer(ModelSerializer):
+
+    class Meta:
+        model = Client
+        fields = ['company_name', 'first_name', 'last_name', 'email', 'phone', 'mobile']
 
 
 class ClientListSerializer(ModelSerializer):
@@ -80,17 +93,57 @@ class ClientListSerializer(ModelSerializer):
         fields = ['id', 'company_name', 'first_name', 'last_name', 'email']
 
 
-class ModifyOrCreateClientSerializer(ModelSerializer):
+class ClientInfoSerializer(ModelSerializer):
 
     class Meta:
         model = Client
-        fields = ['first_name', 'last_name', 'email', 'phone', 'mobile', 'sales_contact_id']
-        
+        fields = ['id', 'company_name']
 
-class ModifyOrCreateEventSerializer(ModelSerializer):
+
+class ContractDetailSerializer(ModelSerializer):
+
+    sales_contact_id = UserInfoSerializer(read_only=True)
+    client_id = ClientInfoSerializer(read_only=True)
+
+    class Meta:
+        model = Contract
+        fields = ['status', 'client_id', 'sales_contact_id', 'amount', 'payment_due']
+
+
+class ContractListSerializer(ModelSerializer):
+    client_id = ClientListSerializer(read_only=True)
+    sales_contact_id = UserListSerializer(read_only=True)
+
+    class Meta:
+        model = Contract
+        fields = ['id', 'status', 'client_id', 'sales_contact_id']
+
+
+class ContractInfoSerializer(ModelSerializer):
+    sales_contact_id = UserInfoSerializer(read_only=True)
+
+    class Meta:
+        model = Contract
+        fields = ['id', 'status', 'sales_contact_id', 'amount', 'payment_due']
+
+
+class EventListSerializer(ModelSerializer):
+    support_contact = UserListSerializer(read_only=True)
+    contract_id = ContractListSerializer(read_only=True)
 
     class Meta:
         model = Event
-        fields = ['attendees', 'event_date', 'notes', 'support_contact', 'client_id']
+        fields = ['id', 'contract_id', 'event_date', 'support_contact']
+
+
+class EventDetailSerializer(ModelSerializer):
+    support_contact = UserInfoSerializer(read_only=True)
+    contract_id = ContractInfoSerializer(read_only=True)
+    client_id = ClientInfoSerializer(read_only=True)
+
+    class Meta:
+        model = Event
+        fields = ['attendees', 'event_date', 'notes', 'client_id', 'support_contact', 'contract_id']
+
 
 
