@@ -239,7 +239,6 @@ class UserAdmin(BaseUserAdmin):
         form = super().get_form(request, obj, **kwargs)
         is_superuser = request.user.is_superuser
         disabled_fields = set()
-        print(request.user.is_superuser)
         if (
                 not is_superuser
                 and obj is not None
