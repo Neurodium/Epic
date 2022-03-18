@@ -57,7 +57,6 @@ class ClientContract(admin.SimpleListFilter):
         - Yes: There is at least a signed contract
         - No: There is no signed contract
     """
-
     title = _('signed contract')
 
     parameter_name = 'signed_contract'
@@ -80,6 +79,28 @@ class ClientContract(admin.SimpleListFilter):
             return queryset.exclude(id__in=signed_clients)
 
 
+class SupportEvents(admin.SimpleListFilter):
+    """
+        Filter to check events by support contact who is making the request
+    """
+    title = _('my events')
+
+    parameter_name = 'supported_events'
+
+    def lookups(self, request, model_admin):
+
+        return(
+            ('MyEvents', _('my events')),
+            ('All', _('all events')),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'MyEvents':
+            return queryset.filter(support_contact=request.user)
+        if self.value() == 'All':
+            return queryset
+
+
 class UserCreationAdminForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
@@ -93,6 +114,9 @@ class UserChangeAdminForm(UserChangeForm):
 
 
 class ClientAdminForm(forms.ModelForm):
+    """
+        filter sales contact to get user only from sales group
+    """
     class Meta(object):
         model = Client
         fields = "__all__"
@@ -105,6 +129,10 @@ class ClientAdminForm(forms.ModelForm):
 
 
 class ContractAdminForm(forms.ModelForm):
+    """
+        Contract form to create/change contracts objects:
+        create a filter to retrieve the sales contact assigned to the client
+    """
     class Meta(object):
         model = Contract
         fields = ["status", "client_id", "sales_contact_id", "amount", "payment_due"]
@@ -146,6 +174,11 @@ class ContractAdminForm(forms.ModelForm):
 
 
 class EventAdminForm(forms.ModelForm):
+    """
+        form to create events
+        create a filter to choose the contract signed and not used in an event
+        create a filter to get the support contact with a user from support group
+    """
     class Meta(object):
         model = Event
         fields = "__all__"
@@ -219,9 +252,7 @@ class UserAdmin(BaseUserAdmin):
         for f in disabled_fields:
             if f in form.base_fields:
                 form.base_fields[f].disabled = True
-
         return form
-
 
 
 @admin.register(Client)
@@ -234,6 +265,10 @@ class ClientAdmin(admin.ModelAdmin):
     list_filter = ("sales_contact_id", ClientContract)
 
     def has_change_permission(self, request, *obj):
+        """
+            update is allowed only if user is assigned to manager group
+            update is allowed if user is sales assigned to the client
+        """
         if obj:
             if obj[0] is not None:
                 if request.user == obj[0].sales_contact_id:
@@ -246,6 +281,9 @@ class ClientAdmin(admin.ModelAdmin):
 
 
     def view_coming_event_link(self, obj):
+        """
+            create url to get the list of coming event for a client
+        """
         today = datetime.now(tz=timezone.utc)
         coming_event = Event.objects.filter(client_id=obj).filter(event_date__gte=today)
         count = coming_event.count()
@@ -267,7 +305,7 @@ class EventAdmin(admin.ModelAdmin):
     list_display = ("id", "client_id", "event_date", "support_contact", "view_client_link",
                     "client_phone", "client_email", "view_contract_link", "contract_sales")
     search_fields = ("client_id__company_name__startswith",)
-    list_filter = ("client_id__company_name", ComingEvent, "support_contact")
+    list_filter = ("client_id__company_name", ComingEvent, SupportEvents)
 
     class Media:
         js = (
@@ -275,6 +313,11 @@ class EventAdmin(admin.ModelAdmin):
         )
 
     def has_change_permission(self, request, *obj):
+        """
+            update is allowed only if user is assigned to manager group
+            update is allowed if user is sales assigned to the client
+            update is allowed if user is support assigned to the event
+        """
         if obj:
             if obj[0] is not None:
                 if request.user == obj[0].client_id.sales_contact_id:
@@ -290,6 +333,9 @@ class EventAdmin(admin.ModelAdmin):
         return False
 
     def view_contract_link(self, obj):
+        """
+            create the url to view the contract object
+        """
         url = (reverse("admin:epicevent_contract_changelist")
                + "?"
                + urlencode({"id": obj.contract_id.id}, True)
@@ -300,12 +346,18 @@ class EventAdmin(admin.ModelAdmin):
     view_contract_link.short_description = "Contract"
 
     def contract_sales(self, obj):
+        """
+            display the sales contact of the contract
+        """
         contract = Contract.objects.get(id=obj.contract_id.id)
         return contract.sales_contact_id
 
     contract_sales.short_description = "Sales Contact"
 
     def view_client_link(self, obj):
+        """
+            create the url to view the clients details
+        """
         url = (reverse("admin:epicevent_client_changelist")
                + "?"
                + urlencode({"id": obj.client_id.id}, True)
@@ -316,12 +368,18 @@ class EventAdmin(admin.ModelAdmin):
     view_client_link.short_description = "Client"
 
     def client_phone(self, obj):
+        """
+            get the client phone
+        """
         client = obj.client_id
         return client.phone
 
     client_phone.short_description = "Phone"
 
     def client_email(self, obj):
+        """
+            get the client email
+        """
         client = obj.client_id
         return client.email
 
@@ -341,6 +399,10 @@ class ContractAdmin(admin.ModelAdmin):
         )
 
     def has_change_permission(self, request, *obj):
+        """
+            update is allowed only if user is assigned to manager group
+            update is allowed if user is sales assigned to the client
+        """
         if obj:
             if obj[0] is not None:
                 if request.user == obj[0].sales_contact_id:
@@ -352,6 +414,9 @@ class ContractAdmin(admin.ModelAdmin):
         return False
 
     def view_client_link(self, obj):
+        """
+            create url to view client details
+        """
         url = (reverse("admin:epicevent_client_changelist")
                + "?"
                + urlencode({"id": obj.client_id.id}, True)
@@ -362,6 +427,9 @@ class ContractAdmin(admin.ModelAdmin):
     view_client_link.short_description = "Client"
 
     def related_event(self, obj):
+        """
+            show the event related to the contract
+        """
         event = Event.objects.get(contract_id=obj.id)
         url = (reverse("admin:epicevent_event_changelist")
                + "?"

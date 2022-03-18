@@ -7,6 +7,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from django.http import Http404
+from datetime import datetime
+from django.utils import timezone
 from django.contrib.auth.models import Group
 from .pagination import PaginationHandlerMixin
 from authentication.models import User
@@ -26,6 +28,9 @@ class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
 class LoginUser(APIView):
+    """
+        Endpoint to log in the application and get the token
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -47,6 +52,14 @@ class LoginUser(APIView):
         
         
 class UsersViewSet(ModelViewSet):
+    """
+        This viewset will manage the User model
+        - get the list of users
+        - get the details of a user
+        - create a user
+        - update a user
+        - delete a user
+    """
     permission_classes = [IsAuthenticated, IsManager]
     serializer_class = UserListSerializer
     detail_serializer_class = UserDetailSerializer
@@ -56,6 +69,9 @@ class UsersViewSet(ModelViewSet):
     lookup_field = 'username'
 
     def get_serializer_class(self):
+        """
+            select the correct serializer class depending on the action called
+        """
         if self.action == 'retrieve':
             return self.detail_serializer_class
         elif self.action == 'update':
@@ -66,6 +82,9 @@ class UsersViewSet(ModelViewSet):
             return super().get_serializer_class()
 
     def create(self, request):
+        """
+            custom creation to insert a list of groups
+        """
         serializer = CreateUserSerializer(data=request.data)
         groups = ast.literal_eval(request.data['groups'])
         if serializer.is_valid():
@@ -74,6 +93,9 @@ class UsersViewSet(ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, username=None):
+        """
+            custom update to insert a list of groups
+        """
         user = User.objects.get(username=username)
         serializer = ModifyUserSerializer(user, data=request.data)
         groups = ast.literal_eval(request.data['groups'])
@@ -83,18 +105,32 @@ class UsersViewSet(ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, username=None):
+        """
+            generates custom message when deletes the user
+        """
         user = User.objects.get(username=username)
         user.delete()
         return Response(f"{user.username} has been deleted", status=status.HTTP_204_NO_CONTENT)
 
 
 class ClientViewSet(ModelViewSet):
+    """
+        Viewset to manage Client model
+        - get the list of clients
+        - retrieve the details of a user
+        - create a client
+        - update a client
+    """
     serializer_class = ClientListSerializer
     detail_serializer_class = ClientDetailSerializer
     queryset = Client.objects.all()
     lookup_field = 'company_name'
 
     def get_serializer_class(self):
+        """
+            get the list serializer when using the action 'list'
+            get the detail serializer for all other actions
+        """
         if self.action == 'list':
             return super().get_serializer_class()
         else:
@@ -117,6 +153,9 @@ class ClientViewSet(ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def create(self, request):
+        """
+            check if client sales contact is from sales group before creating a client
+        """
         serializer = ClientDetailSerializer(data=request.data)
         sales_contact = User.objects.get(username=request.data['sales_contact_id'])
         if sales_contact.groups.filter(name='sales').exists():
@@ -127,6 +166,10 @@ class ClientViewSet(ModelViewSet):
         return Response(f"{sales_contact} is not from sales team")
 
     def update(self, request, company_name=None):
+        """
+            check if client sales contact is from sales group before updating a client
+            check if current user is sales contact assigned to the client
+        """
         client = Client.objects.get(company_name=company_name)
         serializer = ClientDetailSerializer(client, data=request.data)
         sales_contact = User.objects.get(username=request.data['sales_contact_id'])
@@ -141,12 +184,23 @@ class ClientViewSet(ModelViewSet):
 
 
 class ContractViewSet(ModelViewSet):
+    """
+        Viewset to manage Contract model:
+        - get list of contracts
+        - retrieve details of a contract
+        - create a contract
+        - update a contract
+    """
     serializer_class = ContractListSerializer
     detail_serializer_class = ContractDetailSerializer
     queryset = Contract.objects.all()
     lookup_field = 'id'
 
     def get_serializer_class(self):
+        """
+            get the list serializer when using the action 'list'
+            get the detail serializer for all other actions
+        """
         if self.action == 'list':
             return super().get_serializer_class()
         else:
@@ -169,6 +223,9 @@ class ContractViewSet(ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def create(self, request):
+        """
+            checks if sales contact in the contract is the same as the client before creating the object
+        """
         serializer = ContractDetailSerializer(data=request.data)
         client = Client.objects.get(company_name=request.data['client_id'])
         sales_contact = User.objects.get(username=request.data['sales_contact_id'])
@@ -180,6 +237,10 @@ class ContractViewSet(ModelViewSet):
         return Response(f"{client.company_name} sales contact is {client.sales_contact_id}")
 
     def update(self, request, id=None):
+        """
+            checks if current user is the sales contact assigned to the client
+            checks if sales contact in the contract is the same assigned to client before updating the object
+        """
         contract = Contract.objects.get(id=id)
         serializer = ContractDetailSerializer(contract, data=request.data)
         client = Client.objects.get(company_name=contract.client_id.company_name)
@@ -197,12 +258,23 @@ class ContractViewSet(ModelViewSet):
 
 
 class EventViewSet(ModelViewSet):
+    """
+        Viewset to manage Event model:
+        - get list of events
+        - retrieve details of an event
+        - create an event
+        - update an event
+    """
     serializer_class = EventListSerializer
     detail_serializer_class = EventDetailSerializer
     queryset = Event.objects.all()
     lookup_field = 'id'
 
     def get_serializer_class(self):
+        """
+            get the list serializer when using the action 'list'
+            get the detail serializer for all other actions
+        """
         if self.action == 'list':
             return super().get_serializer_class()
         else:
@@ -224,7 +296,11 @@ class EventViewSet(ModelViewSet):
             permission_classes = [IsAdminUser]
         return [permission() for permission in permission_classes]
 
-    def create(self, request):
+    def create(self, request): 
+        """
+            checks if a support contract has been submitted, and if yes, support contact has to be part of group support
+            checks if the contract is active (signed) 
+        """
         data = request.data
         serializer = EventDetailSerializer(data=data)
         client = Client.objects.get(company_name=data['client_id'])
@@ -250,6 +326,11 @@ class EventViewSet(ModelViewSet):
 
 
     def update(self, request, id=None):
+        """
+            checks if a support contract has been submitted, and if yes, support contact has to be part of group support
+            checks if the contract is active (signed) 
+            checks if current user is sales contact or support contact assigned
+        """
         data = request.data
         event = Event.objects.get(id=id)
         serializer = EventDetailSerializer(event, data=request.data)
@@ -277,3 +358,124 @@ class EventViewSet(ModelViewSet):
                 return Response("Contract is not signed")
             return Response(f"{client.company_name} sales contact is {client.sales_contact_id}")
         return Response("You do not have rights to update this event")
+
+
+class ComingEventViewSet(ModelViewSet):
+    """
+        returns all the coming events with the list action
+        returns the coming events of a client with the retrieve action
+    """
+    serializer_class = EventListSerializer
+    detail_serializer_class = EventDetailSerializer
+    today = datetime.now(tz=timezone.utc)
+    queryset = Event.objects.filter(event_date__gte=today)
+    lookup_field = 'client_id'
+
+    def get_serializer_class(self):
+        """
+            get the list serializer when using the action 'list'
+            get the detail serializer for all other actions
+        """
+        if self.action == 'list':
+            return super().get_serializer_class()
+        else:
+            return self.detail_serializer_class
+
+    def get_permissions(self):
+        """
+            Check the permission by action
+        """
+        if self.action == 'list':
+            permission_classes = [IsAuthenticated, IsSales]
+        elif self.action == 'retrieve':
+            permission_classes = [IsAuthenticated, IsSales]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
+
+    def retrieve(self, request, client_id):
+        client = get_object_or_404(Client, company_name=client_id)
+        events = self.queryset.filter(client_id=client)
+        serializer = EventDetailSerializer(events, many=True)
+        return Response(serializer.data)
+
+
+class MissingClientSales(APIView, PaginationHandlerMixin):
+    """
+        returns all clients which do not have sales contact assigned
+    """
+    permission_classes = [IsAuthenticated, IsManager]
+    pagination_class = BasicPagination
+
+    def get(self, request):
+        clients = Client.objects.filter(sales_contact_id__isnull=True)
+        if not clients:
+            return Response("All clients have a sales contact")
+        page = self.paginate_queryset(clients)
+        if page is not None:
+            serializer = self.get_paginated_response(ClientListSerializer(page, many=True).data)
+        else:
+            serializer = ClientListSerializer(clients, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class MissingEventSupport(APIView, PaginationHandlerMixin):
+    """
+        returns all events which does not have a support contact
+    """
+    permission_classes = [IsAuthenticated, IsManager]
+    pagination_class = BasicPagination
+
+    def get(self, request):
+        events = Event.objects.filter(support_contact__isnull=True)
+        if not events:
+            return Response("All events have a support contact")
+        page = self.paginate_queryset(events)
+        if page is not None:
+            serializer = self.get_paginated_response(EventListSerializer(page, many=True).data)
+        else:
+            serializer = EventListSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PotentialClients(APIView, PaginationHandlerMixin):
+    """
+        returns all clients which have not signed a contract
+    """
+    permission_classes = [IsAuthenticated, IsSales]
+    pagination_class = BasicPagination
+
+    def get(self, request):
+        contracts = list(Contract.objects.filter(status=True))
+        signed_clients = [contract.client_id.id for contract in contracts]
+        clients = Client.objects.exclude(id__in=signed_clients)
+        if not clients:
+            return Response("All clients have signed a contract")
+        page = self.paginate_queryset(clients)
+        if page is not None:
+            serializer = self.get_paginated_response(ClientListSerializer(page, many=True).data)
+        else:
+            serializer = ClientListSerializer(clients, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SupportEvents(APIView, PaginationHandlerMixin):
+    """
+        returns the list of events assigned to the support contact who makes the request
+    """
+    permission_classes = [IsAuthenticated, IsSupport]
+    pagination_class = BasicPagination
+
+    def get(self, request):
+        events = list(Event.objects.filter(support_contact=request.user))
+        if not events:
+            return Response("You do not have any event assigned to you")
+        page = self.paginate_queryset(events)
+        if page is not None:
+            serializer = self.get_paginated_response(EventListSerializer(page, many=True).data)
+        else:
+            serializer = EventListSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+

@@ -14,6 +14,9 @@ class Client(models.Model):
     sales_contact_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='client_sales_contact',
                                          blank=True, null=True)
 
+    class Meta:
+        ordering = ['company_name']
+
     def __str__(self):
         return self.company_name
 
@@ -44,6 +47,7 @@ class Event(models.Model):
     
     class Meta:
         unique_together = ['client_id', 'contract_id']
+        ordering = ['event_date']
 
     def __str__(self):
         return self.client_id.company_name + "_" + str(self.contract_id.id) + "_" + str(self.event_date)
