@@ -228,13 +228,11 @@ class ContractViewSet(ModelViewSet):
         """
         serializer = ContractDetailSerializer(data=request.data)
         client = Client.objects.get(company_name=request.data['client_id'])
-        sales_contact = User.objects.get(username=request.data['sales_contact_id'])
-        if client.sales_contact_id == sales_contact:
-            if serializer.is_valid():
-                serializer.save(client_id=client, sales_contact_id=sales_contact)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        return Response(f"{client.company_name} sales contact is {client.sales_contact_id}")
+        if serializer.is_valid():
+            serializer.save(client_id=client, sales_contact_id=client.sales_contact_id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     def update(self, request, id=None):
         """
@@ -243,16 +241,13 @@ class ContractViewSet(ModelViewSet):
         """
         contract = Contract.objects.get(id=id)
         serializer = ContractDetailSerializer(contract, data=request.data)
-        client = Client.objects.get(company_name=contract.client_id.company_name)
+        client = Client.objects.get(company_name=request.data['client_id'])
         sales_contact = User.objects.get(username=client.sales_contact_id)
-        new_sales_contact = User.objects.get(username=request.data['sales_contact_id'])
-        if request.user == sales_contact:
-            if client.sales_contact_id == new_sales_contact:
-                if serializer.is_valid():
-                    serializer.save(client_id=client, sales_contact_id=new_sales_contact)
-                    return Response(serializer.data, status=status.HTTP_201_CREATED)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            return Response(f"{client.company_name} sales contact is {client.sales_contact_id}")
+        if request.user == contract.sales_contact_id:
+            if serializer.is_valid():
+                serializer.save(client_id=client, sales_contact_id=sales_contact)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(f"You do not have rights to update contract {client.company_name}_{contract.id}"
                         f" of {client.company_name}")
 
