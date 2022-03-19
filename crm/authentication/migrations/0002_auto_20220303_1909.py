@@ -70,18 +70,11 @@ def create_groups(apps, schema_migration):
 
     support.permissions.set(support_permissions)
 
-    for user in User.objects.all():
-        if user.role == 'MANAGER':
-            maanger.user_set.add(user)
-        if user.role == 'SALES':
-            sales.user_set.add(user)
-        if user.role == 'SUPPORT':
-            support.user_set.add(user)
-
 
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('epicevent', '0001_initial'),
         ('authentication', '0001_initial'),
     ]
 
