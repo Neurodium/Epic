@@ -27,6 +27,7 @@ from rest_framework.viewsets import ModelViewSet
 class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
+
 class LoginUser(APIView):
     """
         Endpoint to log in the application and get the token
@@ -172,15 +173,21 @@ class ClientViewSet(ModelViewSet):
         """
         client = Client.objects.get(company_name=company_name)
         serializer = ClientDetailSerializer(client, data=request.data)
-        sales_contact = User.objects.get(username=request.data['sales_contact_id'])
-        if sales_contact.groups.filter(name='sales').exists():
-            if request.user == client.sales_contact_id:
-                if serializer.is_valid():
-                    serializer.save(sales_contact_id=sales_contact)
-                    return Response(serializer.data, status=status.HTTP_201_CREATED)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            return Response(f"You do not have rights to update {client.company_name}")
-        return Response(f"{sales_contact} is not from sales team")
+        if request.data['sales_contact_id']:
+            sales_contact = User.objects.get(username=request.data['sales_contact_id'])
+        if request.user.groups.filter(name='manager').exists() or request.user == client.sales_contact_id:
+            if serializer.is_valid():
+                if request.data['sales_contact_id']:
+                    if sales_contact.groups.filter(name='sales').exists():
+                        serializer.save(sales_contact_id=sales_contact)
+                        return Response(serializer.data, status=status.HTTP_201_CREATED)
+                    return Response(f"{sales_contact} is not from sales team")
+                serializer.save(sales_contact_id=None)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(f"You do not have permission to update {client}")
+
+
 
 
 class ContractViewSet(ModelViewSet):
@@ -243,7 +250,7 @@ class ContractViewSet(ModelViewSet):
         serializer = ContractDetailSerializer(contract, data=request.data)
         client = Client.objects.get(company_name=request.data['client_id'])
         sales_contact = User.objects.get(username=client.sales_contact_id)
-        if request.user == contract.sales_contact_id:
+        if request.user.groups.filter(name='manager').exists() or request.user == contract.sales_contact_id:
             if serializer.is_valid():
                 serializer.save(client_id=client, sales_contact_id=sales_contact)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -331,25 +338,26 @@ class EventViewSet(ModelViewSet):
         serializer = EventDetailSerializer(event, data=request.data)
         client = Client.objects.get(company_name=event.client_id)
         contract = Contract.objects.get(id=event.contract_id.id)
-        if event.support_contact:
-            support_contact = User.objects.get(username=event.support_contact)
         if data['support_contact']:
             new_support_contact = User.objects.get(username=data['support_contact'])
-        if request.user == client.sales_contact_id or event.support_contact:
+        if request.user.groups.filter(name='manager').exists() \
+                or request.user == client.sales_contact_id \
+                or request.user == event.support_contact:
             if contract.client_id == client:
                 if contract.status is True:
-                    if new_support_contact.groups.filter(name='support').exists():
-                        if serializer.is_valid():
-                            if data['support_contact']:
+                    if serializer.is_valid():
+                        if data['support_contact']:
+                            if new_support_contact.groups.filter(name='support').exists():
                                 serializer.save(client_id=client,
                                                 support_contact=new_support_contact,
                                                 contract_id=contract)
                                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-                            serializer.save(client_id=client,
-                                            contract_id=contract)
-                            return Response(serializer.data, status=status.HTTP_201_CREATED)
-                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                    return Response(f"{new_support_contact} is not from support team")
+                            return Response(f"{new_support_contact} is not from support team")
+                        serializer.save(client_id=client,
+                                        support_contact=None,
+                                        contract_id=contract)
+                        return Response(serializer.data, status=status.HTTP_201_CREATED)
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
                 return Response("Contract is not signed")
             return Response(f"{client.company_name} sales contact is {client.sales_contact_id}")
         return Response("You do not have rights to update this event")
