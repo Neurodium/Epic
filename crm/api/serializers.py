@@ -48,12 +48,14 @@ class LoginUserSerializer(ModelSerializer):
         model = User
         fields = ['username', 'password']
 
+
 class UserListSerializer(ModelSerializer):
 
     class Meta:
         model = User
         fields = ['id', 'username']
-        
+
+
 class UserDetailSerializer(ModelSerializer):
     
     groups = GroupSerializer(many=True, read_only=True)
@@ -91,13 +93,6 @@ class ClientListSerializer(ModelSerializer):
     class Meta:
         model = Client
         fields = ['id', 'company_name', 'first_name', 'last_name', 'email']
-
-
-class ClientInfoSerializer(ModelSerializer):
-
-    class Meta:
-        model = Client
-        fields = ['id', 'company_name']
 
 
 class ContractDetailSerializer(ModelSerializer):
@@ -145,6 +140,3 @@ class EventDetailSerializer(ModelSerializer):
         model = Event
         fields = ['attendees', 'event_date', 'notes', 'client_id', 'support_contact', 'contract_id']
         
-
-
-

@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser, Group
 
 from .managers import MyAccountManager
 
+
 # Create your models here.
 class User(AbstractUser):
     username = models.CharField(max_length=30, unique=True)
@@ -20,5 +21,3 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-
-

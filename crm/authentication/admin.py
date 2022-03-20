@@ -142,7 +142,7 @@ class ContractAdminForm(forms.ModelForm):
 
         try:
             self.initial['client_id'] = kwargs['instance'].client_id.id
-        except:
+        except KeyError:
             pass
         client_list = [('', '---------')] + [(client.id, client) for client in Client.objects.all()]
 
@@ -151,7 +151,7 @@ class ContractAdminForm(forms.ModelForm):
             sales_init_form = [(sales.id, sales) for sales in
                                User.objects.filter(username=kwargs['instance'].client_id.sales_contact_id
                                                    )]
-        except:
+        except KeyError:
             sales_init_form = [('', '---------')]
 
         try:
@@ -169,7 +169,7 @@ class ContractAdminForm(forms.ModelForm):
                              choices=sales_init_form
                              )
 
-        except:
+        except KeyError:
             pass
 
 
@@ -197,7 +197,7 @@ class EventAdminForm(forms.ModelForm):
         self.fields['support_contact'] = forms.ModelChoiceField(queryset=users, required=False)
         try:
             self.initial['client_id'] = kwargs['instance'].client_id.id
-        except:
+        except KeyError:
             pass
         client_list = [('', '---------')] + [(client.id, client) for client in Client.objects.all()]
 
@@ -206,14 +206,14 @@ class EventAdminForm(forms.ModelForm):
             contract_init_form = [(contract.id, contract) for contract in Contract.objects.filter(
                 client_id=kwargs['instance'].client_id
             )]
-        except:
+        except KeyError:
             contract_init_form = [('', '---------')]
 
         try:
             self.fields['client_id'].widget = forms.Select(attrs={'id': 'id_client',
-                                                                'onchange': 'getContracts(this.value)',
-                                                                'style': 'width:200px'
-                                                                },
+                                                                  'onchange': 'getContracts(this.value)',
+                                                                  'style': 'width:200px'
+                                                                  },
                                                            choices=client_list,
                                                            )
 
@@ -223,9 +223,8 @@ class EventAdminForm(forms.ModelForm):
                 },
                 choices=contract_init_form
             )
-        except:
+        except KeyError:
             pass
-
 
 
 @admin.register(User)
@@ -277,7 +276,6 @@ class ClientAdmin(admin.ModelAdmin):
         if request.user.is_superuser:
             return True
         return False
-
 
     def view_coming_event_link(self, obj):
         """
@@ -435,5 +433,3 @@ class ContractAdmin(admin.ModelAdmin):
                + urlencode({"id": event.id}, True)
                )
         return format_html('<a href="{}">{} </a>', url, event)
-
-

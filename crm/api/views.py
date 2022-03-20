@@ -130,7 +130,7 @@ class ClientViewSet(ModelViewSet):
     def get_serializer_class(self):
         """
             get the list serializer when using the action 'list'
-            get the detail serializer for all other actions
+            get the detail serializer for other actions
         """
         if self.action == 'list':
             return super().get_serializer_class()
@@ -188,8 +188,6 @@ class ClientViewSet(ModelViewSet):
         return Response(f"You do not have permission to update {client}")
 
 
-
-
 class ContractViewSet(ModelViewSet):
     """
         Viewset to manage Contract model:
@@ -206,7 +204,7 @@ class ContractViewSet(ModelViewSet):
     def get_serializer_class(self):
         """
             get the list serializer when using the action 'list'
-            get the detail serializer for all other actions
+            get the detail serializer for other actions
         """
         if self.action == 'list':
             return super().get_serializer_class()
@@ -239,7 +237,6 @@ class ContractViewSet(ModelViewSet):
             serializer.save(client_id=client, sales_contact_id=client.sales_contact_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
     def update(self, request, id=None):
         """
@@ -275,7 +272,7 @@ class EventViewSet(ModelViewSet):
     def get_serializer_class(self):
         """
             get the list serializer when using the action 'list'
-            get the detail serializer for all other actions
+            get the detail serializer for other actions
         """
         if self.action == 'list':
             return super().get_serializer_class()
@@ -325,7 +322,6 @@ class EventViewSet(ModelViewSet):
                 return Response("Contract is not signed")
             return Response(f"{client.company_name} sales contact is {client.sales_contact_id}")
         return Response("Contract is already used")
-
 
     def update(self, request, id=None):
         """
@@ -377,7 +373,7 @@ class ComingEventViewSet(ModelViewSet):
     def get_serializer_class(self):
         """
             get the list serializer when using the action 'list'
-            get the detail serializer for all other actions
+            get the detail serializer for other actions
         """
         if self.action == 'list':
             return super().get_serializer_class()
@@ -420,7 +416,6 @@ class MissingClientSales(APIView, PaginationHandlerMixin):
         else:
             serializer = ClientListSerializer(clients, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 
 class MissingEventSupport(APIView, PaginationHandlerMixin):
@@ -480,5 +475,3 @@ class SupportEvents(APIView, PaginationHandlerMixin):
         else:
             serializer = EventListSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-

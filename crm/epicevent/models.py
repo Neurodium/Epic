@@ -1,6 +1,7 @@
 from django.db import models
 from authentication.models import User
 
+
 # Create your models here.
 class Client(models.Model):
     first_name = models.CharField(max_length=25, null=True, blank=True)
@@ -51,4 +52,3 @@ class Event(models.Model):
 
     def __str__(self):
         return self.client_id.company_name + "_" + str(self.contract_id.id) + "_" + str(self.event_date)
-
