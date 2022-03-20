@@ -21,7 +21,7 @@ go to: https://www.postgresql.org/download/
 - Modify settings.py to put the parameters corresponding to your database
   - Change the NAME if your database name is not the default postgres
   - Change the USER if you do not user postgres
-  - Change the password to the one you have chosen
+  - Change the PASSWORD to the one you have chosen
 
 # Initialize database
  run manage.py migrate
