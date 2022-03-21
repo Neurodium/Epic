@@ -24,13 +24,13 @@ go to: https://www.postgresql.org/download/
   - Change the PASSWORD to the one you have chosen
 
 # Initialize database
- run manage.py migrate
+ run python manage.py migrate
 
 # Launch Server
-run manage.py runserver
+run python manage.py runserver
 
 # Create superuser
-run manage.py createsuperuser
+run python manage.py createsuperuser
 
 # Django application access
 Get the API collection from Postman:  https://documenter.getpostman.com/view/17160432/UVsPPQBd<br>
